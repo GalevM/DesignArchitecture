@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-import os.path
+import os
+from multiprocessing import Manager, Pool
 
 base_url = "https://www.mse.mk/mk/stats/symbolhistory/REPL"
 
 today = datetime.now()
-
 data_rows = []
 flag = False
 
@@ -33,7 +33,7 @@ def fetch_data(code, data):
     for row in rows[1:]:
         cols = row.find_all("td")
         cols = [col.text.strip() for col in cols]
-        cols.append(code)  # Add the code
+        cols.append(code)
         code_data.append(cols)
 
     return code_data
@@ -53,47 +53,37 @@ def get_codes(soup):
             continue
         else:
             filtered_codes.append(code)
+
     return filtered_codes[:-1]
 
 
-# Function to get already scraped dates from the existing data (e.g., CSV)
+response = requests.get(base_url)
+soup = BeautifulSoup(response.text, "html.parser")
+codes = get_codes(soup)
+
+
 def get_existing_dates_from_csv():
     if os.path.exists("dokss.csv"):
         df = pd.read_csv("dokss.csv", parse_dates=["Datum"], dayfirst=True)
-        return set(df["Datum"].dt.date)  # Return unique dates already scraped
+        return set(df["Datum"].dt.date)
     else:
         return set
 
 
-# Start timing
-start_time = time.time()
-
-# Get already scraped dates
-existing_dates = get_existing_dates_from_csv()
-
-
-def scrape(data):
-    # Send POST request to get the codes
-    response = requests.post(base_url, data=data)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Get the codes
-    codes = get_codes(soup)
-
-    # Use multithreading to fetch data for each code
+def scrape(data, manager_data_rows):
     with ThreadPoolExecutor() as executor:
         future_to_code = {executor.submit(fetch_data, code, data): code for code in codes}
 
         for future in as_completed(future_to_code):
             code_data = future.result()
-            data_rows.extend(code_data)
+
+            manager_data_rows.extend(code_data)
 
 
-for year in range(10):
+def process_year(year, manager_data_rows, existing_dates):
     if flagExists:
-
-        if year == 1:
-            break
+        if year >= 1:
+            return
 
         dateLast = max(existing_dates)
         todayTmp = pd.to_datetime(today, format="%d.%m.%Y", errors='coerce')
@@ -107,18 +97,16 @@ for year in range(10):
             missing_dates = []
 
         if len(missing_dates) == 0:
-            flag = True
             print("Nothing to scrape, all the dates are scraped!")
-            break
+            return
 
         print(f"Scraping from {dateLast} to {todayTmp}")
-        # Prepare the data for the POST request
         data = {
             'FromDate': dateLast,
             'ToDate': todayTmp
         }
 
-        scrape(data)
+        scrape(data, manager_data_rows)
 
     else:
         from_date = (today - timedelta(days=365 * (year + 1))).date()
@@ -131,44 +119,53 @@ for year in range(10):
             'ToDate': to_date
         }
 
-        scrape(data)
+        scrape(data, manager_data_rows)
 
-# Create DataFrame and save to CSV
-if flag:
-    df = pd.read_csv("dokss.csv", parse_dates=["Datum"], dayfirst=True)
-else:
-    if flagExists:
-        df1 = pd.read_csv("dokss.csv", parse_dates=["Datum"], dayfirst=True)
 
-        if len(data_rows) > 0:
-            df = pd.DataFrame(data_rows)
-            df.columns = ['Datum', 'Cena na posledna transakcija', 'Mak.', 'Min.', 'Prosecna cena', '%prom', 'Kolicina',
-                          'Promet vo BEST vo denari', 'Vkupen promet vo denari', 'Ime na Kompanija']
+def main():
+    start_time = time.time()
 
-            df = pd.concat([df1, df], ignore_index=True, axis=0)
-        else:
-            df = df1
+    existing_dates = get_existing_dates_from_csv()
+
+    with Manager() as manager:
+        manager_data_rows = manager.list()
+
+        years = range(10)
+        with Pool() as pool:
+            pool.starmap(process_year, [(year, manager_data_rows, existing_dates) for year in years])
+
+        data_rows = list(manager_data_rows)
+
+    if flag:
+        df = pd.read_csv("dokss.csv", parse_dates=["Datum"], dayfirst=True)
     else:
-        df = pd.DataFrame(data_rows)
+        if flagExists:
+            df1 = pd.read_csv("dokss.csv", parse_dates=["Datum"], dayfirst=True)
 
-df.columns = ['Datum', 'Cena na posledna transakcija', 'Mak.', 'Min.', 'Prosecna cena', '%prom', 'Kolicina',
-              'Promet vo BEST vo denari', 'Vkupen promet vo denari', 'Ime na Kompanija']
+            if len(data_rows) > 0:
+                df = pd.DataFrame(data_rows)
+                df.columns = ['Datum', 'Cena na posledna transakcija', 'Mak.', 'Min.', 'Prosecna cena', '%prom',
+                              'Kolicina', 'Promet vo BEST vo denari', 'Vkupen promet vo denari', 'Ime na Kompanija']
+                df = pd.concat([df1, df], ignore_index=True, axis=0)
+            else:
+                df = df1
+        else:
+            df = pd.DataFrame(data_rows)
+
+    df.columns = ['Datum', 'Cena na posledna transakcija', 'Mak.', 'Min.', 'Prosecna cena', '%prom', 'Kolicina',
+                  'Promet vo BEST vo denari', 'Vkupen promet vo denari', 'Ime na Kompanija']
+
+    df["Datum"] = df["Datum"].apply(lambda x: x.strip() if isinstance(x, str) else x)
+    df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y", errors='coerce')
+    df.sort_values(by=["Ime na Kompanija", "Datum"], ascending=[True, False], inplace=True)
+
+    print(df)
+    df.to_csv("dokss.csv", index=False, date_format="%d-%m-%Y")
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Time taken to execute: {elapsed_time:.2f} seconds")
 
 
-# Strip any leading/trailing whitespace in the "Datum" column
-df["Datum"] = df["Datum"].apply(lambda x: x.strip() if isinstance(x, str) else x)
-
-# Convert the "Datum" column to datetime format with Macedonian date format (day-month-year)
-df["Datum"] = pd.to_datetime(df["Datum"], format="%d.%m.%Y", errors='coerce')
-
-# Sort the DataFrame by "Ime na Kompanija" and "Datum" (latest dates first)
-df.sort_values(by=["Ime na Kompanija", "Datum"], ascending=[True, False], inplace=True)
-
-# Print and save to CSV with date format "day-month-year" (e.g., 07-11-2024)
-print(df)
-df.to_csv("dokss.csv", index=False, date_format="%d-%m-%Y")
-
-# End timing and print the elapsed time
-end_time = time.time()
-elapsed_time = end_time - start_time
-print(f"Time taken to execute: {elapsed_time:.2f} seconds")
+if __name__ == "__main__":
+    main()
