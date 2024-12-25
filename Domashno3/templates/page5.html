@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ЛСТМ Резултати</title>
+    <link rel="stylesheet" href="../static/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="logo">📊 ЛСТМ Прогнози</div>
+    <ul class="menu">
+        <li><a href="/">Почетна</a></li>
+        <li><a href="page2">Историја на берза</a></li>
+        <li><a href="page3">Техничка анализа</a></li>
+        <li><a href="page4">Фундаментална анализа</a></li>
+        <li><a href="page5">ЛСТМ Резултати</a></li>
+    </ul>
+</nav>
+
+<h1 style="text-align: center">Резултати од ЛСТМ Прогноза</h1>
+
+
+
+    {% if graph_url %}
+        <h3>Прогноза наспроти Реални Вредности</h3>
+        <img src="{{ graph_url }}" alt="Графикон на ЛСТМ Прогнози" style="max-width: 80%; height: auto;">
+    {% else %}
+        <p>Нема графикон за прикажување.</p>
+    {% endif %}
+</div>
+
+<footer style="margin-top: 100px;">
+    <p>&copy; 2024 ЛСТМ Прогнози | <a href="#">Политика за приватност</a> | <a href="#">Услови за користење</a></p>
+</footer>
+
+<script src="../static/script.js"></script>
+</body>
+</html>
