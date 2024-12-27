@@ -11,7 +11,7 @@ from collections import Counter
 from transformers import pipeline, AutoTokenizer
 import os
 
-from DizajnArhitektura.Domasno3.LSTM import train_lstm, predict_and_evaluate, prepare_data
+from DesignArchitecture.Domashno3.LSTM import train_lstm, predict_and_evaluate, prepare_data
 
 matplotlib.use('Agg')
 
