@@ -28,15 +28,14 @@ def prepare_data(file_path):
 
     df = df[["Datum", "Cena na posledna transakcija"]]  # Одбирање само на потребните колони
     df.columns = ["Date", "Close"]  # Променување на имињата на колоните
-    df.dropna(inplace=True)  # Премахнување на редови со недостасувачки вредности
+    df.dropna(inplace=True)
     df.set_index("Date", inplace=True)  # Поставување на датумот како индекс
 
-    # Скалатор за нормализација на цените
+
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(df["Close"].values.reshape(-1, 1))
 
-    # Параметри за обработка на податоците
-    sequence_length = 60  # Вземаме податоци од претходните 60 дена
+    sequence_length = 60
     x_data, y_data = [], []
 
     # Подготовка на податоците за LSTM
@@ -78,15 +77,15 @@ def predict_and_evaluate(model, x_test, y_test, scaler):
     y_test_scaled = scaler.inverse_transform(y_test.reshape(-1, 1))  # Претворање на тест податоците
     mse = mean_squared_error(y_test_scaled, predictions)  # Проценка на грешката
 
-    rmse = np.sqrt(mse)  # Извлекување на корен од средна квадратна грешка (RMSE)
+    rmse = np.sqrt(mse)
 
     return predictions, y_test_scaled, rmse
 
 
-# Главна функција
+
 # Главна функција
 def main():
-    file_path = "../Domasno1/dokss.csv"  # Патека до податоците (замени ако е потребно)
+    file_path = "../Domasno1/dokss.csv"
 
     # Подготовка на податоците
     x_train, x_test, y_train, y_test, scaler = prepare_data(file_path)
