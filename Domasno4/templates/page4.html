@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фундаментална анализа</title>
+    <link rel="stylesheet" href="../static/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="logo">📈 Берза</div>
+    <ul class="menu">
+        <li><a href="/Domasno4/static">Почетна</a></li>
+        <li><a href="page2">Историја на берза</a></li>
+        <li><a href="page3">Техничка анализа</a></li>
+        <li><a href="page4">Фундаментална анализа</a></li>
+        <li><a href="page5">ЛСТМ Резултати</a></li>
+
+    </ul>
+</nav>
+
+<h1 style="text-align: center">Предвидување на Берза со Фундаментална анализа</h1>
+<div class="container">
+    <form style="display: block;" id="prediction-form" method="POST">
+        <label for="issuer">Издавач:</label>
+        <select name="issuer" id="issuer" required>
+            {% for issuer in issuers %}
+            <option value="{{ issuer }}" {% if issuer == selected_issuer %}selected{% endif %}>{{ issuer }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn">Генерирај Сигнали</button>
+    </form>
+
+</div>
+
+<div class="result-box" style="margin-left: auto; margin-right: auto">
+    <h2>Резултати од Фундаменталната анализа</h2>
+    {% if sentiment %}
+    <p><strong>Компанија: </strong> {{ selected_issuer }}</p>
+    <p><strong>Сентимент: </strong>{{ sentiment }}</p>
+    {% else %}
+    <p id="prediction-results">Нема податоци за прикажување. Изберете компанија.</p>
+    {% endif %}
+</div>
+
+<footer style="margin-top: 100px">
+    <p>&copy; 2024 Берза | <a href="#">Политика за приватност</a> | <a href="#">Услови за користење</a></p>
+</footer>
+</body>
+<script src="../static/script.js"></script>
+</html>
